@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Distribusi Oksigen — Simulasi Banker's &amp; SCAN</title>
+<meta name="description" content="Prototipe sistem penunjang keputusan alokasi tabung oksigen medis dengan Banker's Algorithm dan penjadwalan rute SCAN/LOOK. Data hipotetis, bukan alat keputusan klinis.">
+<meta name="theme-color" content="#f5f4f0">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d5b51'/%3E%3Cpath d='M16 8c-3 3.6-5 6.2-5 8.9A5 5 0 0 0 21 17c0-2.7-2-5.3-5-9z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+<!-- ============================ HALAMAN MASUK ============================ -->
+<div class="landing" id="landing">
+  <div class="landing-main">
+    <div class="landing-brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.6c-3.2 3.9-5.3 6.7-5.3 9.6a5.3 5.3 0 0 0 10.6 0c0-2.9-2.1-5.7-5.3-9.6Zm0 15.3a4.5 4.5 0 0 1-4.5-4.5c0-1.9 1.4-4 3.5-6.7l1 1.3c1.7 2.3 2.8 4 2.8 5.4A4.5 4.5 0 0 1 12 17.9Z"/></svg>
+      </span>
+      <span class="brand-text">
+        <span class="brand-name">Distribusi Oksigen</span>
+        <span class="brand-sub">Sistem Operasi · Prototipe akademik</span>
+      </span>
+    </div>
+
+    <p class="eyebrow">Penunjang keputusan distribusi</p>
+    <h1>Alokasi tabung yang aman, rute armada yang <em>tidak bolak-balik</em>.</h1>
+    <p class="lede">
+      Simulasi alokasi tabung oksigen medis dengan <strong>Banker&rsquo;s Algorithm</strong> dan
+      penjadwalan pengantaran <strong>SCAN</strong>. Masukkan data fasilitas Anda sendiri,
+      lihat keputusan tiap permintaan, lalu unduh hasilnya sebagai laporan.
+    </p>
+
+    <ul class="landing-facts">
+      <li><span class="k">Alokasi</span><span>Banker&rsquo;s dengan uji safe state dan alokasi parsial otomatis</span></li>
+      <li><span class="k">Rute</span><span>FCFS, SCAN, dan LOOK dibandingkan pada koridor yang sama</span></li>
+      <li><span class="k">Siklus</span><span>Turnaround tabung kosong <span class="mono">τ</span> dan protokol eskalasi 3 tingkat</span></li>
+      <li><span class="k">Keluaran</span><span>PDF, Word, Excel, CSV, JSON, dan gambar siap dilampirkan</span></li>
+    </ul>
+
+    <div class="landing-cta">
+      <button class="btn lg" id="enterBtn" type="button">
+        Masuk ke dashboard
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+      <p class="note-inline" style="margin:0">Tanpa akun dan tanpa registrasi. Data yang Anda masukkan hanya disimpan di peramban ini.</p>
+    </div>
+
+    <p class="landing-foot">
+      Data pada contoh adalah data hipotetis untuk keperluan akademik. Keluaran simulasi bukan
+      rekomendasi klinis dan tidak menggantikan penilaian tenaga medis.
+    </p>
+  </div>
+
+  <aside class="landing-side" aria-hidden="true">
+    <div class="landing-side-inner">
+      <div class="landing-figure">
+        <div class="landing-figure-head">
+          <span class="t">Contoh rute — koridor 0–80 km</span>
+          <span class="badge ok plain">Aman</span>
+        </div>
+        <div class="landing-figure-body" id="landingFigure"></div>
+      </div>
+      <p class="landing-cap">
+        Depot di km 40 melayani tiga fasilitas. Urutan SCAN 40 → 55 → 70 → 80 → 10 menempuh
+        110 km, sedangkan LOOK 40 → 55 → 70 → 10 menempuh 90 km.
+      </p>
+    </div>
+  </aside>
+</div>
+
+<!-- ============================== APLIKASI ============================== -->
+<div class="app" id="app" hidden>
+
+  <div class="scrim" id="scrim" hidden></div>
+
+  <aside class="sidebar" id="sidebar" aria-label="Navigasi utama">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.6c-3.2 3.9-5.3 6.7-5.3 9.6a5.3 5.3 0 0 0 10.6 0c0-2.9-2.1-5.7-5.3-9.6Zm0 15.3a4.5 4.5 0 0 1-4.5-4.5c0-1.9 1.4-4 3.5-6.7l1 1.3c1.7 2.3 2.8 4 2.8 5.4A4.5 4.5 0 0 1 12 17.9Z"/></svg>
+      </span>
+      <span class="brand-text">
+        <span class="brand-name">Distribusi Oksigen</span>
+        <span class="brand-sub">Banker&rsquo;s · SCAN</span>
+      </span>
+    </div>
+
+    <nav class="nav" id="navList">
+      <p class="nav-label">Ringkasan</p>
+      <button class="nav-item" data-view="dashboard" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        Dashboard
+      </button>
+
+      <p class="nav-label">Perhitungan</p>
+      <button class="nav-item" data-view="data" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="18" cy="18" r="2.2"/></svg>
+        Data &amp; parameter
+      </button>
+      <button class="nav-item" data-view="bankers" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 7.5 12 12l9-4.5L12 3Z"/><path d="m3 12 9 4.5L21 12M3 16.5 12 21l9-4.5"/></svg>
+        Keputusan Banker&rsquo;s
+      </button>
+      <button class="nav-item" data-view="rute" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.2"/><circle cx="19" cy="18" r="2.2"/><path d="M7 6h6a4 4 0 0 1 0 8H9a4 4 0 0 0 0 8h1"/></svg>
+        Rute pengantaran
+      </button>
+      <button class="nav-item" data-view="eskalasi" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"/><path d="M12 16.5v.01"/><path d="M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        Eskalasi
+      </button>
+      <button class="nav-item" data-view="multisiklus" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+        Multisiklus &amp; τ
+      </button>
+
+      <p class="nav-label">Analisis</p>
+      <button class="nav-item" data-view="skenario" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9M10 19V5M16 19v-6M22 19H2"/></svg>
+        Skenario uji
+      </button>
+      <button class="nav-item" data-view="ekspor" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m8 7 4-4 4 4"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>
+        Unduh hasil
+      </button>
+      <button class="nav-item" data-view="metode" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg>
+        Metode &amp; batasan
+      </button>
+    </nav>
+
+    <div class="nav-foot">
+      <button class="btn ghost sm" id="exitBtn" type="button" style="width:100%">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5M20 12H9M13 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7"/></svg>
+        Keluar ke halaman awal
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="btn ghost icon menu-toggle" id="menuToggle" type="button" aria-label="Buka navigasi">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <div style="min-width:0">
+        <div class="topbar-title" id="topTitle">Dashboard</div>
+        <div class="topbar-crumb" id="topCrumb">Ringkasan hasil simulasi</div>
+      </div>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-actions">
+        <button class="btn ghost sm" id="themeToggle" type="button" aria-label="Ubah tema tampilan" title="Ubah tema">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z"/></svg>
+        </button>
+        <button class="btn sm" id="runBtnTop" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5v15l14-7.5-14-7.5Z"/></svg>
+          Jalankan
+        </button>
+        <div class="menu" id="exportMenuWrap">
+          <button class="btn ghost sm" id="exportMenuBtn" type="button" aria-haspopup="true" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m8 7 4-4 4 4"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>
+            Unduh
+          </button>
+          <div class="menu-panel" id="exportMenu" role="menu" hidden></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="content" id="content">
+
+      <!-- ===================== DASHBOARD ===================== -->
+      <section class="view" id="view-dashboard" aria-labelledby="h-dashboard">
+        <div class="page-head">
+          <div class="page-head-row">
+            <div class="grow">
+              <p class="eyebrow">Ringkasan siklus ini</p>
+              <h1 id="h-dashboard">Dashboard distribusi</h1>
+              <p id="dashSub">Ringkasan keputusan alokasi, cakupan fasilitas, dan efisiensi rute dari data yang sedang dimuat.</p>
+            </div>
+            <div class="page-actions">
+              <button class="btn ghost sm" data-goto="data" type="button">Ubah data</button>
+              <button class="btn ghost sm" data-goto="ekspor" type="button">Unduh laporan</button>
+            </div>
+          </div>
+        </div>
+        <div id="dashBody"></div>
+      </section>
+
+      <!-- ===================== DATA ===================== -->
+      <section class="view" id="view-data" aria-labelledby="h-data">
+        <div class="page-head">
+          <div class="page-head-row">
+            <div class="grow">
+              <p class="eyebrow">Masukan</p>
+              <h1 id="h-data">Data &amp; parameter</h1>
+              <p>Ubah stok depot, koridor, bobot prioritas, dan data fasilitas. Semua perhitungan dijalankan ulang di peramban Anda.</p>
+            </div>
+            <div class="page-actions">
+              <button class="btn ghost sm" id="importCsvBtn" type="button">Impor CSV</button>
+              <button class="btn ghost sm" id="resetDataBtn" type="button">Data contoh</button>
+            </div>
+          </div>
+        </div>
+        <div id="dataBody"></div>
+      </section>
+
+      <!-- ===================== BANKER'S ===================== -->
+      <section class="view" id="view-bankers" aria-labelledby="h-bankers">
+        <div class="page-head">
+          <div class="page-head-row">
+            <div class="grow">
+              <p class="eyebrow">Alokasi</p>
+              <h1 id="h-bankers">Keputusan Banker&rsquo;s Algorithm</h1>
+              <p>Setiap permintaan melewati tiga gerbang: <span class="mono">Request ≤ Need</span>, <span class="mono">Request ≤ Available</span>, lalu uji safe state. Bila jumlah penuh tidak aman, sistem mencoba jumlah yang lebih kecil.</p>
+            </div>
+          </div>
+        </div>
+        <div id="bankersBody"></div>
+      </section>
+
+      <!-- ===================== RUTE ===================== -->
+      <section class="view" id="view-rute" aria-labelledby="h-rute">
+        <div class="page-head">
+          <div class="page-head-row">
+            <div class="grow">
+              <p class="eyebrow">Distribusi</p>
+              <h1 id="h-rute">Rute pengantaran</h1>
+              <p>Hanya fasilitas yang disetujui Banker&rsquo;s yang masuk daftar pengiriman. FCFS, SCAN, dan LOOK dihitung pada koridor yang sama.</p>
+            </div>
+          </div>
+        </div>
+        <div id="ruteBody"></div>
+      </section>
+
+      <!-- ===================== ESKALASI ===================== -->
+      <section class="view" id="view-eskalasi" aria-labelledby="h-eskalasi">
+        <div class="page-head">
+          <div class="page-head-row">
+            <div class="grow">
+              <p class="eyebrow">Tindak lanjut</p>
+              <h1 id="h-eskalasi">Protokol eskalasi</h1>
+              <p>Fasilitas yang belum terpenuhi diperiksa terhadap sisa cadangan oksigen. Ambang jam adalah asumsi rancangan, bukan hasil pengujian klinis.</p>
+            </div>
+          </div>
+        </div>
+        <div id="eskalasiBody"></div>
+      </section>
+
+      <!-- ===================== MULTISIKLUS ===================== -->
+      <section class="view" id="view-multisiklus" aria-labelledby="h-multisiklus">
+        <div class="page-head">
+          <div class="page-head-row">
+            <div class="grow">
+              <p class="eyebrow">Waktu pengisian ulang</p>
+              <h1 id="h-multisiklus">Simulasi multisiklus</h1>
+              <p>Tabung kosong kembali ke depot setelah <span class="mono">τ</span> siklus: <span class="mono">Available(t+1) = Available(t) − Diberikan(t) + Kembali(t−τ)</span>. Bandingkan kebijakan Banker&rsquo;s dengan pemberian tanpa uji aman.</p>
+            </div>
+          </div>
+        </div>
+        <div id="multisiklusBody"></div>
+      </section>
+
+      <!-- ===================== SKENARIO ===================== -->
+      <section class="view" id="view-skenario" aria-labelledby="h-skenario">
+        <div class="page-head">
+          <div class="page-head-row">
+            <div class="grow">
+              <p class="eyebrow">Pengujian</p>
+              <h1 id="h-skenario">Skenario uji acak terkontrol</h1>
+              <p>Bangkitkan 10–20 fasilitas dengan permintaan jauh di atas stok, lalu bandingkan kebijakan naif, Banker&rsquo;s urutan masuk, dan Banker&rsquo;s dengan skor prioritas.</p>
+            </div>
+          </div>
+        </div>
+        <div id="skenarioBody"></div>
+      </section>
+
+      <!-- ===================== EKSPOR ===================== -->
+      <section class="view" id="view-ekspor" aria-labelledby="h-ekspor">
+        <div class="page-head">
+          <div class="page-head-row">
+            <div class="grow">
+              <p class="eyebrow">Keluaran</p>
+              <h1 id="h-ekspor">Unduh hasil simulasi</h1>
+              <p>Setiap berkas memuat data masukan, keputusan alokasi, perbandingan rute, hasil multisiklus, dan catatan batasan. Berkas dibuat di peramban — tidak ada data yang dikirim ke server.</p>
+            </div>
+          </div>
+        </div>
+        <div id="eksporBody"></div>
+      </section>
+
+      <!-- ===================== METODE ===================== -->
+      <section class="view" id="view-metode" aria-labelledby="h-metode">
+        <div class="page-head">
+          <div class="page-head-row">
+            <div class="grow">
+              <p class="eyebrow">Dokumentasi</p>
+              <h1 id="h-metode">Metode, asumsi, dan batasan</h1>
+              <p>Rujukan model: laporan progres proyek &ldquo;Sistem Penyediaan dan Distribusi Tabung Oksigen Medis saat Pandemi berbasis Banker&rsquo;s Algorithm dan SCAN Algorithm&rdquo; (Revisi 2).</p>
+            </div>
+          </div>
+        </div>
+        <div id="metodeBody"></div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="overlay-box">
+    <span class="spinner" aria-hidden="true"></span>
+    <span id="overlayText">Menyiapkan berkas…</span>
+  </div>
+</div>
+
+<input type="file" id="csvInput" accept=".csv,text/csv" hidden>
+
+<noscript>
+  <div style="max-width:560px;margin:80px auto;padding:0 20px;font-family:system-ui,sans-serif">
+    <h1 style="font-size:22px">JavaScript diperlukan</h1>
+    <p>Aplikasi ini menjalankan seluruh perhitungan di peramban. Aktifkan JavaScript untuk menggunakan simulasi.</p>
+  </div>
+</noscript>
+
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/jspdf.autotable.min.js"></script>
+<script src="vendor/docx.umd.js"></script>
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="vendor/html2canvas.min.js"></script>
+
+<script src="assets/js/core/engine.js"></script>
+<script src="assets/js/ui/util.js"></script>
+<script src="assets/js/ui/charts.js"></script>
+<script src="assets/js/ui/views.js"></script>
+<script src="assets/js/export/exporters.js"></script>
+<script src="assets/js/ui/app.js"></script>
+</body>
+</html>
