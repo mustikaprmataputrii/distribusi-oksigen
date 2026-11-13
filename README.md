@@ -7,6 +7,8 @@ peramban: tanpa server, tanpa akun, tanpa registrasi.
 > **Batasan akademik.** Seluruh data contoh bersifat hipotetis. Keluaran simulasi bukan
 > rekomendasi klinis dan tidak menggantikan penilaian tenaga medis.
 
+**Demo langsung:** <https://mustikaprmataputrii.github.io/distribusi-oksigen/>
+
 ---
 
 ## Daftar isi
